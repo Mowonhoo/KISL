@@ -167,7 +167,7 @@ par(mfrow=c(1,1))
 plot(hclustdatME, main="Clustering tree based of the module eigengenes")
 dev.off()
 
-# dir1=paste(outdir,"Relationship between module eigengenes.png",sep="/")
+# dir1=paste(outdir, paste0(prefix, "Relationship between module eigengenes.png"),sep="/")
 # png(file=dir1,width = 3000,height = 2800,res = 300)
 pdf(file = paste(outdir, paste0(prefix, "Relationship between module eigengenes.pdf"), sep="/"), width=9, height=12)
 #sizeGrWindow(8,9)
@@ -180,7 +180,7 @@ dev.off()
 
 dir1=paste(outdir, paste0(prefix, "heatmap plots of module expression.png"), sep="/")
 png(file=dir1, width = 3000, height = 700*length(colorlevels), res = 300)
-# pdf(paste(outdir, "heatmap plots of module expression.pdf",sep="/"), width=9, height=12)
+# pdf(paste(outdir, paste0(prefix, "heatmap plots of module expression.pdf"),sep="/"), width=9, height=12)
 #sizeGrWindow(18,16)
 par(mfrow=c(6, 1), mar=c(1, 2, 4, 1))
 for (which.module in colorlevels) {
@@ -192,7 +192,7 @@ dev.off()
 
 which.module <- module_color
 ME=datME[, paste("ME", which.module, sep="")]
-# dir1=paste(outdir,"displaying module heatmap and the eigengene.png",sep="/")
+# dir1=paste(outdir, paste0(prefix, "displaying module heatmap and the eigengene.png"),sep="/")
 # png(file=dir1, width = 3000, height = 2800, res = 300)
 pdf(file=paste(outdir, paste0(prefix, "displaying module heatmap and the eigengene.pdf"), sep="/"), width=9, height=12)
 #sizeGrWindow(8,7);
@@ -219,7 +219,7 @@ ModuleSignificance = as.data.frame(ModuleSignificance)
 write.csv(ModuleSignificance, file = paste(outdir, paste0(prefix, ".Gene significance across modules.csv"), sep="/"), row.names = TRUE, quote = FALSE)
 
 
-# dir1=paste(outdir,"Gene significance across modules.png",sep="/")
+# dir1=paste(outdir, paste0(prefix, "Gene significance across modules.png"),sep="/")
 # png(file=dir1,width = 3000,height = 2800,res = 300)
 pdf(file=paste(outdir, paste0(prefix, "Gene significance across modules.pdf"), sep="/"), width=9, height=6)
 #sizeGrWindow(8,7)
@@ -237,7 +237,7 @@ head(Alldegrees)
 # }else{colorlevels=unique(color)}
 
 #sizeGrWindow(9,6)
-# dir1=paste(outdir,"Gene Significance vs Connectivity.png",sep="/")
+# dir1=paste(outdir, paste0(prefix, "Gene Significance vs Connectivity.png"),sep="/")
 # png(file=dir1,width = 2400,height = 3000,res = 300)
 pdf(paste(outdir, paste0(prefix, "Gene Significance vs Connectivity.pdf"), sep="/"), width=9, height=12)
 par(mfrow=c(as.integer(0.5+length(colorlevels)/3), 3), mar = c(4,5,3,1)) #
@@ -263,7 +263,7 @@ head(datKME)
 #   colorlevels=unique(color)[1:12]
 # }else{colorlevels=unique(color)}
 
-# dir1=paste(outdir,"Module Membership vs Intramodular Connectivity.png",sep="/")
+# dir1=paste(outdir, paste0(prefix, "Module Membership vs Intramodular Connectivity.png"),sep="/")
 # png(file=dir1, width = 2400, height = 3000, res = 300)
 pdf(paste(outdir, paste0(prefix, "Module Membership vs Intramodular Connectivity.pdf"), sep="/"), width=9, height=12)
 par(mfrow=c(as.integer(0.5+length(colorlevels)/3), 3), mar = c(4,5,3,1)) #
