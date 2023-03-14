@@ -1,7 +1,8 @@
 # -*- coding: UTF-8 -*-
-import os
+import os,re
 import pandas as pd
 import numpy as np
+import math
 import itertools
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -78,22 +79,26 @@ def snn_sim_matrix(X, k=5):
     sim_matrix += sim_matrix.T - np.diag(sim_matrix.diagonal())
     return sim_matrix
 
+def MutualInfo(X):
+    mic = {}
+    for i in X:
+        mic[i] = MIR(X, X[i])
+        
+    return pd.DataFrame(mic, index=mic.keys())
 
 class PCKMeans:
-    def __init__(self, n_clusters=5, distance_type=None, w=1, max_iter=100):
+    def __init__(self, n_clusters=3, max_iter=100, w=1):
         self.n_clusters = n_clusters
         self.max_iter = max_iter
         self.w = w
-        self.distance_type = distance_type
 
     def fit(self, X, y=None, ml=[], cl=[]):
-        X = np.array(X)
         # Preprocess constraints
         ml_graph, cl_graph, neighborhoods = preprocess_constraints(ml, cl, X.shape[0])
 
         # Initialize centroids
         cluster_centers = self._initialize_cluster_centers(X, neighborhoods)
-        
+
         # Repeat until convergence
         for iteration in range(self.max_iter):
             # Assign clusters
@@ -133,49 +138,9 @@ class PCKMeans:
                 cluster_centers = np.concatenate([cluster_centers, remaining_cluster_centers])
 
         return cluster_centers
- 
-    def _distcorr(self, X, Y):
-        """ Compute the distance correlation function
 
-        >>> a = [1,2,3,4,5]
-        >>> b = np.array([1,2,9,4,4])
-        >>> distcorr(a, b)
-        0.762676242417
-        """
-        X = np.atleast_1d(X)
-        Y = np.atleast_1d(Y)
-        if np.prod(X.shape) == len(X):
-            X = X[:, None]
-        if np.prod(Y.shape) == len(Y):
-            Y = Y[:, None]
-        X = np.atleast_2d(X)
-        Y = np.atleast_2d(Y)
-        n = X.shape[0]
-        if Y.shape[0] != X.shape[0]:
-            raise ValueError('Number of samples must match')
-        a = squareform(pdist(X))
-        b = squareform(pdist(Y))
-        A = a - a.mean(axis=0)[None, :] - a.mean(axis=1)[:, None] + a.mean()
-        B = b - b.mean(axis=0)[None, :] - b.mean(axis=1)[:, None] + b.mean()
-
-        dcov2_xy = (A * B).sum()/float(n * n)
-        dcov2_xx = (A * A).sum()/float(n * n)
-        dcov2_yy = (B * B).sum()/float(n * n)
-        dcor = np.sqrt(dcov2_xy)/np.sqrt(np.sqrt(dcov2_xx) * np.sqrt(dcov2_yy))
-        
-        return dcor    
-    
     def _objective_function(self, X, x_i, centroids, c_i, labels, ml_graph, cl_graph, w):
-        #distance = 1 / 2 * np.sum((X[x_i] - centroids[c_i]) ** 2)
-        #distance = np.linalg.norm(X[x_i] - centroids[c_i])
-        #distance = self._distcorr(X[x_i], centroids[c_i]) # Compute the distance correlation
-
-        if self.distance_type=='euclidean':
-            distance = np.linalg.norm(X[x_i] - centroids[c_i])
-        elif self.distance_type=='dcorr':
-            distance = self._distcorr(X[x_i], centroids[c_i]) # Compute the distance correlation
-        else:
-            distance = 1 / 2 * np.sum((X[x_i] - centroids[c_i]) ** 2)
+        distance = 1 / 2 * np.sum((X[x_i] - centroids[c_i]) ** 2)
 
         ml_penalty = 0
         for y_i in ml_graph[x_i]:
@@ -203,7 +168,7 @@ class PCKMeans:
         empty_clusters = np.where(n_samples_in_cluster == 0)[0]
 
         if len(empty_clusters) > 0:
-            print("Empty clusters")
+            # print("Empty clusters")
             raise EmptyClustersException
 
         return labels
@@ -353,3 +318,105 @@ def model_feature_selection(X, y, method='svm', threshold=1e-5, random_state=Non
 
     return X
 
+def bar(x, y, dirPrefix='bar', title='', xlabel='', ylabel='', showplot=False):
+    
+    width = 0.35
+    fig = plt.figure(figsize=(6, 6), dpi=100)
+    plt.subplot(111)
+    plt.title(title, fontsize=18)
+    plt.xlabel(xlabel, fontsize=16)
+    plt.ylabel(ylabel, fontsize=16)
+    plt.bar(x, y, width, color="#87CEFA") 
+    
+    ax = plt.gca()  #gca:get current axis
+    ax.spines['right'].set_color('none')
+    ax.spines['top'].set_color('none')
+    
+    plt.tight_layout()
+    
+    fig.savefig(dirPrefix+".png", dpi=1080, bbox_inches='tight')
+    fig.savefig(dirPrefix+".pdf", bbox_inches='tight')
+
+    if ~showplot:
+        plt.close()
+    
+
+def SilhouetteAnalysis(X_Dim, labels, SI, sample_silhouette_values
+                       , dirPrefix='Silhouette analysis for clustering'
+                       , suptitle=''
+                       , colors=None
+                       , D3=False
+                       , showplot=True):
+    n_clusters_ =len(np.unique(labels)) - (1 if -1 in labels else 0)
+    # Silhouette analysis for clustering
+    fig = plt.figure(figsize=(16, 6), dpi=200)
+    fig.set_size_inches(18, 7) 
+    plt.rcParams.update({'font.family': 'Times New Roman'})
+    plt.rcParams.update({'font.weight': 'normal'})
+    plt.rcParams.update({'font.size': 20})
+    
+    ax1=fig.add_subplot(121)
+    ax1.set_xlim([-0.1, 1])
+    ax1.set_ylim([0, len(labels) + (n_clusters_ + 1) * 10])
+    
+    y_lower = 10
+    for i in range(n_clusters_):
+        ith_cluster_silhouette_values = sample_silhouette_values[labels == i]
+        ith_cluster_silhouette_values.sort()
+        size_cluster_i = ith_cluster_silhouette_values.shape[0]
+        y_upper = y_lower + size_cluster_i
+        if colors==None:
+            color = cm.nipy_spectral(float(i)/n_clusters_)
+        else:
+            color = np.compress(np.array(labels == i), colors, axis=0)[0]#np.array(colors)[np.array(labels == i).astype(bool)][0]#
+        ax1.fill_betweenx(np.arange(y_lower, y_upper)
+                         ,ith_cluster_silhouette_values
+                         ,facecolor=color
+                         ,alpha=0.7
+                         )
+        # ax1.text(x=-0.05
+        #          , y=y_lower + 0.5 * size_cluster_i
+        #          , s=str(i)
+        #          , fontsize=10
+        #         )
+        y_lower = y_upper + 10
+    ax1.set_title("The Silhouette plot for the various clusters.", fontsize=18)
+    ax1.set_xlabel("The Silhouette coefficient values", fontsize=16)
+    ax1.set_ylabel("Clusters label", fontsize=16)
+    ax1.axvline(x=SI, color="red", linestyle="--")
+    ax1.set_yticks([])
+    ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
+    
+    if colors==None:
+        colors = cm.nipy_spectral(labels.astype(float)/n_clusters_)
+    if D3:
+        ax2 = fig.add_subplot(1, 2, 2, projection='3d') #
+        ax2.scatter3D(X_Dim[:, 0], X_Dim[:, 1], X_Dim[:, 2]
+                    ,marker='o'
+                    ,s=4
+                    ,c=colors
+                    )
+        ax2.set_title("The visualization of the clustered data", fontsize=18)
+        ax2.set_xlabel("Feature space for the 1st feature", fontsize=16)
+        ax2.set_ylabel("Feature space for the 2nd feature", fontsize=16, rotation=38) #, rotation=38
+        ax2.set_zlabel("Feature space for the 3rd feature", fontsize=16)
+    else:
+        ax2 = fig.add_subplot(122) #
+        ax2.scatter(X_Dim[:, 0], X_Dim[:, 1]
+                    ,marker='o'
+                    ,s=4
+                    ,c=colors
+                    )
+        ax2.set_title("The visualization of the clustered data", fontsize=18)
+        ax2.set_xlabel("Feature space for the 1st feature", fontsize=16)
+        ax2.set_ylabel("Feature space for the 2nd feature", fontsize=16) #, rotation=38  
+    plt.suptitle(suptitle, fontsize=20, fontweight='bold')
+    
+    fig = plt.gcf()
+    
+    fig.savefig(dirPrefix+".png", bbox_inches='tight', dpi=1080) 
+    fig.savefig(dirPrefix+".pdf", bbox_inches='tight')
+    
+    if ~showplot:
+        plt.close()
+    
